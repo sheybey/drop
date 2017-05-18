@@ -1,0 +1,15 @@
+<nav>
+  <div class="container">
+    <ul>
+      <li><a href="{{ url_for('index') }}">Drop</a></li>
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('logout') }}">Log out</a></li>
+        {% if current_user.upload %}
+          <li><a href="{{ url_for('upload') }}">Upload</a></li>
+        {% endif %}
+      {% else %}
+        <li><a href="{{ url_for('login') }}">Log in</a></li>
+      {% endif %}
+    </ul>
+  </div>
+</nav>

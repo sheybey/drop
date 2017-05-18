@@ -1,0 +1,12 @@
+{% extends '_base.html' %}
+{% block title %}Files{% endblock %}
+{% block body %}
+  {% include '_navbar.html' %}
+  <div class="container">
+    {% for file in current_user.visible_files() %}
+      {% include '_file.html' %}
+    {% else %}
+      <em>No files.</em>
+    {% endfor %}
+  </div>
+{% endblock %}

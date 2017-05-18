@@ -1,0 +1,21 @@
+{% from '_macros.html' import style %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% block head %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Dropper &mdash; {% block title %}{% endblock %}</title>
+
+  <link rel="stylesheet" type="text/css"
+    href="https://cdn.rawgit.com/dhg/Skeleton/88f03612b05f093e3f235ced77cf89d3a8fcf846/css/normalize.css">
+  <link rel="stylesheet" type="text/css"
+    href="https://cdn.rawgit.com/dhg/Skeleton/88f03612b05f093e3f235ced77cf89d3a8fcf846/css/skeleton.css">
+  {{ style('base') }}
+{% endblock %}
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>
