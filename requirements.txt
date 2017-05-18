@@ -1,0 +1,6 @@
+passlib[argon2]
+Flask
+Flask-WTF
+Flask-Login
+Flask-SQLAlchemy
+
