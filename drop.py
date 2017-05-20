@@ -1,11 +1,16 @@
-from flask import Flask, render_template, redirect, flash, abort
+from flask import Flask, render_template, redirect, flash, abort, url_for, \
+    request, escape
+from markupsafe import Markup
 from flask_login import LoginManager, current_user
 from flask_login.mixins import UserMixin, AnonymousUserMixin
+from flask_login.utils import login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
 from wtforms.fields import PasswordField, StringField, DateField, SelectField
-from wtforms.validators import InputRequired, ValidationError, Optional
-from os import path, mkdir, stat
+from wtforms.validators import InputRequired, DataRequired, ValidationError, \
+    Optional
+from os import path, mkdir, stat, unlink
 from datetime import date
 
 
@@ -52,6 +57,10 @@ class Token(UserMixin, db.Model):
     def file_count(self):
         return File.query.filter_by(token_id=self.id).count()
 
+    @property
+    def expired(self):
+        return self.expires is not None and self.expires <= date.today()
+
     def visible_files(self):
         return filter(
             lambda f: f.visible_to(self),
@@ -88,12 +97,16 @@ class File(db.Model):
                 return "{} KiB".format(round(size / k, 2))
         return "{} bytes".format(size)
 
+    def delete(self):
+        unlink(path.join(app.config['UPLOAD_DIR'], self.name))
+
 
 
 class AnonymousUser(AnonymousUserMixin):
     token = None
     permission = 0
     expires = None
+    expired = False
     admin = False
     upload = False
     file_count = 0
@@ -135,7 +148,10 @@ class LoginForm(FlaskForm):
 
 
 class UploadForm(FlaskForm):
-    pass
+    file = FileField(
+        'File',
+        validators=[FileRequired(message='Specify a file to upload')]
+    )
 
 
 class CreateTokenForm(FlaskForm):
@@ -148,20 +164,30 @@ class CreateTokenForm(FlaskForm):
     )
     permission = SelectField(
         'Permissions',
-        choices=(
-            ('View only', Token.Permissions.none),
-            ('Upload', Token.Permissions.upload),
-            ('Admin', Token.Permissions.admin)
-        ),
+        choices=[
+            (Token.Permissions.none, 'View only'),
+            (Token.Permissions.upload, 'Upload'),
+            (Token.Permissions.admin, 'Admin')
+        ],
+        coerce=int,
         validators=[InputRequired('Specify a permission level')]
     )
     expires = DateField(
-        'Expiration date', validators=[
+        'Expiration date',
+        validators=[
             Optional(),
+            DataRequired('Invalid date'),
             AfterToday('You cannot create an expired token')
         ]
     )
 
+
+@app.before_request
+def check_token():
+    if current_user.expired:
+        logout_user()
+        flash('This token has expired', 'error')
+        return redirect(url_for('index'))
 
 @app.route('/')
 def index():
@@ -174,7 +200,10 @@ def login():
     if form.validate_on_submit():
         for token in Token.query.all():
             if form.token.data == token.token:
-                login_manager.login_user(token)
+                if token.expired:
+                    flash('This token has expired', 'error')
+                    return redirect(url_for('index'))
+                login_user(token)
                 flash('Logged in')
                 return redirect(url_for('index'))
         flash('Incorrect token', 'error')
@@ -183,7 +212,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    login_manager.logout_user()
+    logout_user()
     flash('Logged out')
     return redirect(url_for('index'))
 
@@ -192,8 +221,23 @@ def logout():
 def upload():
     form = UploadForm()
     if form.validate_on_submit():
-        pass
+        flash('file uploaded', 'success')
     return render_template('upload.html', form=form)
+
+
+@app.route('/delete/file', methods=['POST'])
+def delete_file():
+    if not current_user.admin:
+        abort(401)
+    try:
+        file = File.query.get_or_404(int(request.form['file']))
+    except ValueError: # keyerror from request.form is handled by werkzeug
+        abort(400)
+    file.delete()
+    db.session.delete(file)
+    db.session.commit()
+    flash('File deleted')
+    return Markup('<a href="{}">Index</a>').format(url_for('index'))
 
 
 @app.route('/tokens')
@@ -213,7 +257,20 @@ def files(token):
     )
 
 
-@app.route('/tokens/create', methods=['GET', 'POST'])
+@app.route('/delete/token', methods=['POST'])
+def delete_token():
+    if not current_user.admin:
+        abort(401)
+    try:
+        token = Token.query.get_or_404(int(request.form['token']))
+    except ValueError:
+        abort(400)
+    db.session.delete(token)
+    db.session.commit()
+    return Markup('<a href="{}">Tokens</a>').format(url_for('tokens'))
+
+
+@app.route('/create/token', methods=['GET', 'POST'])
 def create_token():
     if not current_user.admin:
         return redirect(url_for('login'))
