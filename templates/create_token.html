@@ -1,0 +1,37 @@
+{% extends '_base.html' %}
+{% macro form_errors(field) %}
+  {% for message in form.errors[field] %}
+    <span class="error u-cf">{{ message }}</span>
+  {% endfor %}
+{% endmacro %}
+{% block title %}Create Token{% endblock %}
+{% block body %}
+  {% include '_navbar.html' %}
+  <div class="container">
+    {% for category, message in get_flashed_messages(True) %}
+      <p class="{{ category }}">{{ message }}</p>
+    {% endfor %}
+    <form action="{{ url_for('create_token') }}" method="POST">
+      {{ form.csrf_token }}
+      <p>
+        {{ form.token.label }}
+        {{ form.token() }}
+        {{ form_errors('token') }}
+      </p>
+      <p>
+        {{ form.permission.label }}
+        {{ form.permission() }}
+        {{ form_errors('permission') }}
+      </p>
+      <p>
+        {{ form.expires.label }}
+        {{ form.expires(
+          placeholder='YYYY-MM-DD',
+          title='Leave blank for no expiration'
+        ) }}
+        {{ form_errors('expires') }}
+      </p>
+      <p><input type="submit" value="Create token"></p>
+    </form>
+  </div>
+{% endblock %}

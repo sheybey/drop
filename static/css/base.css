@@ -1,3 +1,26 @@
 nav ul {
     list-style: none;
 }
+
+nav li {
+    display: inline-block;
+    padding: 0;
+}
+
+table form, table input {
+    margin-bottom: 0;
+}
+
+thead {
+    font-weight: 600;
+}
+
+input.danger {
+    color: #F55;
+    border-color: #F55;
+}
+
+input.danger:hover {
+    color: red;
+    border-color: red;
+}

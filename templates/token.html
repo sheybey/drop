@@ -1,8 +1,9 @@
 {% extends '_base.html' %}
-{% block title %}Files uploaded by {{ token.token }}{% endblock %}
+{% block title %}Files from {{ token.token }}{% endblock %}
 {% block body %}
   {% include '_navbar.html' %}
   <div class="container">
+    <h1>Files from <em>{{ token.token }}</em></h1>
     {% for file in token.files %}
       {% include _file.html %}
     {% else %}

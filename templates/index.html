@@ -3,6 +3,17 @@
 {% block body %}
   {% include '_navbar.html' %}
   <div class="container">
+    <h1>
+      {% if current_user.is_authenticated -%}
+        {%- if current_user.admin -%}
+          All
+        {%- else -%}
+          Your
+        {%- endif -%}
+      {%- else -%}
+        Public
+      {%- endif %} files
+    </h1>
     {% for file in current_user.visible_files() %}
       {% include '_file.html' %}
     {% else %}
