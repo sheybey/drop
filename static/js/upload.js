@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var in_progress = false;
     var form = document.querySelector('form');
     var submit = document.querySelector('input[type="submit"]');
+    var file = document.querySelector('input[type="file"]');
 
     function start(e) {
         var x;
@@ -29,9 +30,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         in_progress = true;
 
+        if (!file.files[0]) {
+            window.message('No file provided.', 'error');
+            return;
+        }
+
         progress = document.createElement('progress');
         progress.classList.add('u-cf');
         progress.classList.add('u-full-width');
+        progress.value = 0;
 
         submit.removeEventListener('click', start);
         submit.addEventListener('click', cancel);
@@ -42,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         x = new XMLHttpRequest();
         x.responseType = 'json';
-        x.addEventListener('progress', function (e) {
+        x.upload.addEventListener('progress', function (e) {
             progress.value = e.loaded;
             progress.max = e.total;
         });
