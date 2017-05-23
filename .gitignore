@@ -3,4 +3,5 @@ __pycache__
 *.pyc
 uploads
 drop.db
+drop.cfg
 

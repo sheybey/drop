@@ -1,4 +1,4 @@
-{% from '_macros.html' import style %}
+{% from '_macros.html' import style, script %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,9 +15,17 @@
   <link rel="stylesheet" type="text/css"
     href="https://fonts.googleapis.com/css?family=Raleway:400,400i,600"> 
   {{ style('base') }}
+  {{ script('messages') }}
 {% endblock %}
 </head>
 <body>
-{% block body %}{% endblock %}
+{% block body %}
+  {% include '_navbar.html' %}
+  <div class="container">
+    <h1>{{ self.title() }}</h1>
+    {% include '_messages.html' %}
+    {% block content %}{% endblock %}
+  </div>
+{% endblock %}
 </body>
 </html>

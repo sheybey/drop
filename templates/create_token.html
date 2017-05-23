@@ -1,21 +1,20 @@
 {% extends '_base.html' %}
-{% macro form_errors(field) %}
-  {% for message in form.errors[field] %}
-    <span class="error u-cf">{{ message }}</span>
-  {% endfor %}
-{% endmacro %}
+{% from '_macros.html' import form_errors with context %}
+{% from '_macros.html' import script %}
 {% block title %}Create Token{% endblock %}
+{% block head %}
+  {{ super() }}
+  {{ script('messages') }}
+{% endblock %}
 {% block body %}
   {% include '_navbar.html' %}
   <div class="container">
-    {% for category, message in get_flashed_messages(True) %}
-      <p class="{{ category }}">{{ message }}</p>
-    {% endfor %}
+    {% include '_messages.html' %}
     <form action="{{ url_for('create_token') }}" method="POST">
       {{ form.csrf_token }}
       <p>
         {{ form.token.label }}
-        {{ form.token() }}
+        {{ form.token(_class='u-full-width') }}
         {{ form_errors('token') }}
       </p>
       <p>

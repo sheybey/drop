@@ -1,7 +1,7 @@
 <nav>
   <div class="container">
     <ul>
-      <li><a href="{{ url_for('index') }}">Drop</a></li>
+      <li><a href="{{ url_for('index') }}">Files</a></li>
       {% if current_user.is_authenticated %}
         {% if current_user.upload %}
           <li><a href="{{ url_for('upload') }}">Upload</a></li>

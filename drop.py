@@ -1,23 +1,28 @@
 from flask import Flask, render_template, redirect, flash, abort, url_for, \
-    request, escape
+    request, escape, send_from_directory
 from markupsafe import Markup
+from werkzeug.utils import secure_filename
 from flask_login import LoginManager, current_user
 from flask_login.mixins import UserMixin, AnonymousUserMixin
 from flask_login.utils import login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
-from wtforms.fields import PasswordField, StringField, DateField, SelectField
+from wtforms.fields import PasswordField, StringField, DateField, \
+    SelectField, BooleanField
 from wtforms.validators import InputRequired, DataRequired, ValidationError, \
     Optional
-from os import path, mkdir, stat, unlink
+from os import path, mkdir, stat, unlink, urandom
 from datetime import date
+from tokenize import tokenize, untokenize, NAME, OP, EQUAL, STRING, \
+    ENCODING, open as token_open
+import json
 
 
 class DefaultConfiguration:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///drop.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = 'hello'
+    SECRET_KEY = b'hello'
     UPLOAD_DIR = 'uploads'
 
 
@@ -73,7 +78,8 @@ class File(db.Model):
     token_id = db.Column(
         db.Integer,
         db.ForeignKey('token.id'),
-        nullable=False
+        nullable=False,
+        default=lambda: current_user
     )
     name = db.Column(db.String(1024), nullable=False, unique=True)
     public = db.Column(db.Boolean, nullable=False)
@@ -82,7 +88,7 @@ class File(db.Model):
         return self.public or token.admin or self.token.id == token.id
 
     def url(self):
-        return url_to('get', name=self.name)
+        return url_for('get', name=self.name)
 
     def human_size(self):
         size = stat(path.join(app.config['UPLOAD_DIR'], self.name)).st_size
@@ -99,7 +105,6 @@ class File(db.Model):
 
     def delete(self):
         unlink(path.join(app.config['UPLOAD_DIR'], self.name))
-
 
 
 class AnonymousUser(AnonymousUserMixin):
@@ -140,17 +145,41 @@ class NewToken(MessageValidator):
             raise ValidationError(self.message)
 
 
+class UniqueName(MessageValidator):
+    def __call__(self, form, field):
+        name = secure_filename(field.data.filename)
+        if name == '':
+            raise ValidationError(self.message['empty'])
+        if path.exists(path.join(app.config['UPLOAD_DIR'], name)):
+            raise ValidationError(self.message['exists'])
+
+
 class LoginForm(FlaskForm):
     token = PasswordField(
         'Token',
-        validators=[InputRequired('Incorrect token')]
+        validators=[InputRequired('Missing token.')]
     )
 
 
 class UploadForm(FlaskForm):
     file = FileField(
         'File',
-        validators=[FileRequired(message='Specify a file to upload')]
+        validators=[
+            FileRequired(message='Specify a file to upload'),
+            UniqueName(message={
+                'empty': 'Invalid filename.',
+                'exists': 'This file already exists.'
+            })
+        ]
+    )
+    public = BooleanField('Public')
+    owner = SelectField(
+        'Owner',
+        coerce=int,
+        validators=[
+            Optional(),
+            InputRequired('Invalid owner.')
+        ]
     )
 
 
@@ -158,26 +187,26 @@ class CreateTokenForm(FlaskForm):
     token = StringField(
         'Token',
         validators=[
-            InputRequired('Specify a token to create'),
-            NewToken('This token already exists')
+            InputRequired('Specify a token to create.'),
+            NewToken('This token already exists.')
         ]
     )
     permission = SelectField(
         'Permissions',
-        choices=[
+        choices=(
             (Token.Permissions.none, 'View only'),
             (Token.Permissions.upload, 'Upload'),
             (Token.Permissions.admin, 'Admin')
-        ],
+        ),
         coerce=int,
-        validators=[InputRequired('Specify a permission level')]
+        validators=[InputRequired('Specify a permission level.')]
     )
     expires = DateField(
         'Expiration date',
         validators=[
             Optional(),
-            DataRequired('Invalid date'),
-            AfterToday('You cannot create an expired token')
+            DataRequired('Invalid date.'),
+            AfterToday('You cannot create an expired token.')
         ]
     )
 
@@ -186,8 +215,9 @@ class CreateTokenForm(FlaskForm):
 def check_token():
     if current_user.expired:
         logout_user()
-        flash('This token has expired', 'error')
+        flash('This token has expired.', 'error')
         return redirect(url_for('index'))
+
 
 @app.route('/')
 def index():
@@ -201,43 +231,80 @@ def login():
         for token in Token.query.all():
             if form.token.data == token.token:
                 if token.expired:
-                    flash('This token has expired', 'error')
+                    flash('This token has expired.', 'error')
                     return redirect(url_for('index'))
                 login_user(token)
-                flash('Logged in')
+                flash('Logged in.', 'success')
                 return redirect(url_for('index'))
-        flash('Incorrect token', 'error')
+        flash('Incorrect token.', 'error')
     return render_template('login.html', form=form)
 
 
 @app.route('/logout')
 def logout():
     logout_user()
-    flash('Logged out')
+    flash('Logged out.', 'success')
     return redirect(url_for('index'))
 
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
+    if not current_user.upload:
+        flash('You are not allowed to upload files.', 'error')
+        return redirect(url_for('index'))
+
     form = UploadForm()
+
+    if current_user.admin:
+        form.owner.choices = (
+            ((0, 'Me'),) +
+            tuple(
+                (token.id, token.token)
+                for token in Token.query.all()
+                if token.id != current_user.id
+            )
+        )
+    else:
+        form.owner.choices = []
+
     if form.validate_on_submit():
-        flash('file uploaded', 'success')
+        file = form.file.data
+        name = secure_filename(file.filename)  # This is checked in UniqueName
+        file.save(path.join(app.config['UPLOAD_DIR'], name))
+        db.session.add(File(
+            name=name,
+            public=form.public.data,
+            token=(
+                current_user
+                if not current_user.admin or not form.owner.data
+                # None is fine because it defaults to current_user
+                else Token.query.get(form.owner.data)
+            )
+        ))
+        db.session.commit()
+        if request.args.get('json', False):
+            return json.dumps({'uploaded': name})
+        flash('File `{}\' uploaded.'.format(name), 'success')
+        return redirect(url_for('index'))
     return render_template('upload.html', form=form)
 
 
-@app.route('/delete/file', methods=['POST'])
+@app.route('/file/delete', methods=['POST'])
 def delete_file():
     if not current_user.admin:
         abort(401)
     try:
         file = File.query.get_or_404(int(request.form['file']))
-    except ValueError: # keyerror from request.form is handled by werkzeug
+    except ValueError:  # keyerror from request.form is handled by werkzeug
         abort(400)
+    name = file.name
     file.delete()
     db.session.delete(file)
     db.session.commit()
-    flash('File deleted')
-    return Markup('<a href="{}">Index</a>').format(url_for('index'))
+    if request.args.get('json', False):
+        return json.dumps({'deleted': name})
+    flash('File `{}\' deleted.'.format(name), 'success')
+    return redirect(url_for('index'))
 
 
 @app.route('/tokens')
@@ -247,30 +314,38 @@ def tokens():
     return render_template('tokens.html', tokens=Token.query.all())
 
 
-@app.route('/tokens/<token>')
-def files(token):
+@app.route('/tokens/<int:token_id>')
+def files(token_id):
     if not current_user.admin:
         return redirect(url_for('login'))
     return render_template(
         'token.html',
-        token=Token.query.filter_by(token=token).first_or_404()
+        token=Token.query.get_or_404(token_id)
     )
 
 
-@app.route('/delete/token', methods=['POST'])
+@app.route('/tokens/delete', methods=['POST'])
 def delete_token():
     if not current_user.admin:
         abort(401)
     try:
         token = Token.query.get_or_404(int(request.form['token']))
+        # taking a copy ensures all files are iterated over.
+        for file in token.files[:]:
+            file.token = current_user
+            db.session.add(file)
     except ValueError:
         abort(400)
+    t = token.token
     db.session.delete(token)
     db.session.commit()
-    return Markup('<a href="{}">Tokens</a>').format(url_for('tokens'))
+    if request.args.get('json', False):
+        return json.dumps({'deleted': t})
+    flash('Token `{}\' deleted.'.format(t), 'success')
+    return redirect(url_for('tokens'))
 
 
-@app.route('/create/token', methods=['GET', 'POST'])
+@app.route('/tokens/create', methods=['GET', 'POST'])
 def create_token():
     if not current_user.admin:
         return redirect(url_for('login'))
@@ -283,7 +358,7 @@ def create_token():
         )
         db.session.add(token)
         db.session.commit()
-        flash('Token `{}\' created'.format(token.token), 'success')
+        flash('Token `{}\' created.'.format(token.token), 'success')
         return redirect(url_for('tokens'))
     return render_template('create_token.html', form=form)
 
@@ -294,11 +369,6 @@ def get(name):
     if not file.visible_to(current_user):
         abort(404)
     return send_from_directory(app.config['UPLOAD_DIR'], file.name)
-
-
-@app.route('/debug')
-def debug():
-    return render_template('debug.html')
 
 
 @app.cli.group(name="db")
@@ -326,6 +396,57 @@ def drop():
 
 @app.cli.command()
 def uploads():
-    """Create the uploads folder."""
+    """
+    Create the uploads folder.
+    """
     if not path.isdir(app.config['UPLOAD_DIR']):
         mkdir(app.config['UPLOAD_DIR'])
+
+
+@app.cli.command()
+def secret_key():
+    """
+    Randomly generate a new secret key, creating the config file if necessary.
+    """
+
+    assign = False
+    name = None
+    result = []
+    new_key = urandom(24)
+    f = None
+
+    try:
+        with open('drop.cfg', 'rb') as f:
+            tokens = tokenize(f.readline)
+
+            for t in tokens:
+                token = t.type
+                source = t.string
+                op_type = t.exact_type
+
+                if token == NAME:
+                    name = source
+                elif token == OP:
+                    assign = op_type == EQUAL
+                elif token == ENCODING:
+                    encoding = source
+
+                if token == STRING and assign and name == 'SECRET_KEY':
+                    result.append((STRING, repr(new_key)))
+                else:
+                    result.append((token, source))
+
+    except FileNotFoundError:
+        result = [
+            (ENCODING, 'utf-8'),
+            (NAME, 'secret_key'),
+            (OP, '='),
+            (STRING, repr(new_key))
+        ]
+
+    with open('drop.cfg', 'wb') as f:
+        f.write(untokenize(result))
+
+
+if __name__ == '__main__':
+    app.run(debug=True, use_debugger=False, use_reloader=False)

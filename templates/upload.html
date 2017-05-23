@@ -1,19 +1,34 @@
 {% extends '_base.html' %}
 {% from '_macros.html' import script %}
+{% from '_macros.html' import form_errors with context %}
 {% block title %}Upload{% endblock %}
 {% block head %}
   {{ super() }}
   {{ script('upload') }}
 {% endblock %}
-{% block body %}
-  {% include '_navbar.html' %}
-  <div class="container">
-    <h1>Upload</h1>
-    <form action="{{ url_for('upload') }}" method="POST"
-      enctype="multipart/form-data">
-      {{ form.csrf_token }}
-      <p>{{ form.file.label }} {{ form.file() }}</p>
-      <p><input type="submit" value="Start upload"></p>
-    </form>
-  </div>
+{% block content %}
+  <form action="{{ url_for('upload') }}" method="POST"
+    enctype="multipart/form-data">
+    {{ form.csrf_token }}
+    <p>
+      {{ form.file.label }}
+      {{ form.file() }}
+      {{ form_errors('file') }}
+    </p>
+    <p>
+      {{ form.public.label }}
+      {{ form.public() }}
+      <em class="u-cf">Public files are visible to everyone, including logged-out users.</em>
+      {{ form_errors('public') }}
+    </p>
+    {% if current_user.admin %}
+      <p>
+        {{ form.owner.label }}
+        {{ form.owner() }}
+        <em class="u-cf">Non-public files are only visible to admins and their owner.</em>
+        {{ form_errors('owner') }}
+      </p>
+    {% endif %}
+    <p><input type="submit" value="Start upload"></p>
+  </form>
 {% endblock %}

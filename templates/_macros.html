@@ -5,3 +5,22 @@
 {% macro script(name) -%}
   <script src="{{ url_for('static', filename='js/{}.js'.format(name)) }}"></script>
 {%- endmacro %}
+{% macro form_errors(field) -%}
+  {% for message in form.errors[field] %}
+    <span class="error u-cf">{{ message }}</span>
+  {% endfor %}
+{%- endmacro %}
+{% macro render_file(file) -%}
+  <div class="file">
+    <p>
+      <a download href="{{ file.url() }}">{{ file.name }}</a>
+      ({{ file.human_size() }})
+    </p>
+    {% if current_user.admin %}
+      <form action="{{ url_for('delete_file') }}" method="POST">
+        <input type="hidden" name="file" value="{{ file.id }}">
+        <input type="submit" class="link danger" value="Delete">
+      </form>
+    {% endif %}
+  </div>
+{%- endmacro %}

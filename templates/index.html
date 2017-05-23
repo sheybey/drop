@@ -1,23 +1,21 @@
 {% extends '_base.html' %}
-{% block title %}Files{% endblock %}
-{% block body %}
-  {% include '_navbar.html' %}
-  <div class="container">
-    <h1>
-      {% if current_user.is_authenticated -%}
-        {%- if current_user.admin -%}
-          All
-        {%- else -%}
-          Your
-        {%- endif -%}
-      {%- else -%}
-        Public
-      {%- endif %} files
-    </h1>
-    {% for file in current_user.visible_files() %}
-      {% include '_file.html' %}
-    {% else %}
-      <em>No files.</em>
-    {% endfor %}
-  </div>
+{% from '_macros.html' import script %}
+{% from '_macros.html' import render_file with context %}
+{% block title -%}
+{% if current_user.is_authenticated -%}
+  {%- if current_user.admin -%}
+    All
+  {%- else -%}
+    Your
+  {%- endif -%}
+{%- else -%}
+  Public
+{%- endif %} files
+{%- endblock %}
+{% block content %}
+  {% for file in current_user.visible_files() %}
+    {{ render_file(file) }}
+  {% else %}
+    <em>No files.</em>
+  {% endfor %}
 {% endblock %}

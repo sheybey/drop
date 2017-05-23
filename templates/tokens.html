@@ -1,45 +1,41 @@
 {% extends '_base.html' %}
-{% block title %}Tokens{% endblock %}
+{% block title %}All tokens{% endblock %}
 {% set perms = ('View only', 'Upload', 'Admin') %}
-{% block body %}
-  {% include '_navbar.html' %}
-  <div class="container">
-    <h1>All tokens</h1>
-    <table class="u-full-width">
-      <thead>
+{% block content %}
+  <table class="u-full-width">
+    <thead>
+      <tr>
+        <td>Token</td>
+        <td>Permissions</td>
+        <td>No. Files</td>
+        <td>Expires</td>
+        <td></td>
+      </tr>
+    </thead>
+    <tbody>
+      {% for token in tokens %}
         <tr>
-          <td>Token</td>
-          <td>Permissions</td>
-          <td>No. Files</td>
-          <td>Expires</td>
-          <td></td>
+          <td>
+            <a href="{{ url_for('files', token_id=token.id) }}">
+              {{ token.token }}
+            </a>
+          </td>
+          <td>{{ perms[token.permission] }}</td>
+          <td>{{ token.file_count }}</td>
+          <td>{{ 'Never' if token.expires is none else token.expires }}</td>
+          <td>
+            {% if not current_user == token %}
+              <form action="{{ url_for('delete_token') }}" method="POST">
+                <input type="hidden" name="token" value="{{ token.id }}">
+                <input type="submit" class="link danger" value="Delete">
+              </form>
+            {% else %}
+              <em>This token</em>
+            {% endif %}
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {% for token in tokens %}
-          <tr>
-            <td>
-              <a href="{{ url_for('files', token=token.token) }}">
-                {{ token.token }}
-              </a>
-            </td>
-            <td>{{ perms[token.permission] }}</td>
-            <td>{{ token.file_count }}</td>
-            <td>{{ 'Never' if token.expires is none else token.expires }}</td>
-            <td>
-              {% if not current_user == token %}
-                <form action="{{ url_for('delete_token') }}" method="POST">
-                  <input type="hidden" name="token" value="{{ token.id }}">
-                  <input type="submit" class="link danger" value="Delete">
-                </form>
-              {% else %}
-                <em>This token</em>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p><a href="{{ url_for('create_token') }}">Create token</a></p>
-  </div>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><a href="{{ url_for('create_token') }}">Create token</a></p>
 {% endblock %}

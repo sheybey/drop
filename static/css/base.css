@@ -1,10 +1,23 @@
 nav ul {
     list-style: none;
+    margin-top: 1em;
 }
 
 nav li {
     display: inline-block;
     padding: 0;
+    margin-right: 0.5em;
+}
+
+nav li > a {
+    text-decoration: none;
+    padding: 0.5em 1em;
+}
+
+nav li:hover a {
+    color: white;
+    background-color: #1EAEDB;
+    border-radius: 4px;
 }
 
 table form, table input {
@@ -23,4 +36,31 @@ input.danger {
 input.danger:hover {
     color: red;
     border-color: red;
+}
+
+form span.error {
+    color: red;
+}
+
+.message, .progress-bar {
+    border-radius: 4px;
+    background-image: repeating-linear-gradient(
+        120deg,
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 12px,
+        rgba(0, 0, 0, 0.2) 12px,
+        rgba(0, 0, 0, 0.2) 24px
+    );
+    padding: 0 0.5em;
+    font-weight: 600;
+}
+
+.message.success {
+    background-color: #3B3;
+    color: white;
+}
+
+.message.error {
+    background-color: #F66;
+    color: white;
 }

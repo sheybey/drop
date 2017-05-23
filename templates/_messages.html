@@ -1,0 +1,5 @@
+<div class="messages">
+  {% for category, message in get_flashed_messages(True) %}
+    <p class="message {{ category }}">{{ message }}</p>
+  {% endfor %}
+</div>
