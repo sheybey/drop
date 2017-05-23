@@ -15,7 +15,7 @@ from wtforms.validators import InputRequired, DataRequired, ValidationError, \
 from os import path, mkdir, stat, unlink, urandom
 from datetime import date
 from tokenize import tokenize, untokenize, NAME, OP, EQUAL, STRING, \
-    ENCODING, open as token_open
+    ENCODING, NEWLINE, NL, ENDMARKER, open as token_open
 import json
 
 
@@ -414,6 +414,7 @@ def secret_key():
     result = []
     new_key = urandom(24)
     f = None
+    found = False
 
     try:
         with open('drop.cfg', 'rb') as f:
@@ -433,15 +434,28 @@ def secret_key():
 
                 if token == STRING and assign and name == 'SECRET_KEY':
                     result.append((STRING, repr(new_key)))
+                    found = True
                 else:
                     result.append((token, source))
+
+        if not found:
+            for pair in (
+                (NEWLINE, '\n'),
+                (NAME, 'SECRET_KEY'),
+                (OP, '='),
+                (STRING, repr(new_key)),
+                (NEWLINE, '\n')
+            ):
+                result.insert(-1, pair)
 
     except FileNotFoundError:
         result = [
             (ENCODING, 'utf-8'),
-            (NAME, 'secret_key'),
+            (NAME, 'SECRET_KEY'),
             (OP, '='),
-            (STRING, repr(new_key))
+            (STRING, repr(new_key)),
+            (NEWLINE, '\n'),
+            (ENDMARKER, '')
         ]
 
     with open('drop.cfg', 'wb') as f:
