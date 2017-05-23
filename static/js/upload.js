@@ -32,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function () {
         progress = document.createElement('progress');
         progress.classList.add('u-cf');
         progress.classList.add('u-full-width');
-        progress.indeterminate = true;
 
         submit.removeEventListener('click', start);
         submit.addEventListener('click', cancel);
@@ -44,13 +43,8 @@ document.addEventListener('DOMContentLoaded', function () {
         x = new XMLHttpRequest();
         x.responseType = 'json';
         x.addEventListener('progress', function (e) {
-            if (e.lengthComputable) {
-                progress.indeterminate = false;
-                progress.value = e.loaded;
-                progress.max = e.total;
-            } else {
-                progress.indeterminate = true;
-            }
+            progress.value = e.loaded;
+            progress.max = e.total;
         });
         x.addEventListener('load', function () {
             if (x.status === 200) {
