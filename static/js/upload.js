@@ -7,23 +7,20 @@ document.addEventListener('DOMContentLoaded', function () {
     function start(e) {
         var x;
         var progress;
-        var reset;
 
         function cancel(e) {
             e.preventDefault();
             x.abort();
-            window.message('Upload cancelled.', 'error');
-            reset();
         }
 
-        reset = function () {
+        function reset() {
             form.removeChild(progress);
             submit.removeEventListener('click', cancel);
             submit.addEventListener('click', start);
             submit.classList.remove('danger');
             submit.value = 'Start upload';
             in_progress = false;
-        };
+        }
 
         e.preventDefault();
 
