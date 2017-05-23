@@ -14,7 +14,7 @@
       {{ form.csrf_token }}
       <p>
         {{ form.token.label }}
-        {{ form.token(_class='u-full-width') }}
+        {{ form.token(class_='u-full-width') }}
         {{ form_errors('token') }}
       </p>
       <p>
@@ -26,9 +26,11 @@
         {{ form.expires.label }}
         {{ form.expires(
           placeholder='YYYY-MM-DD',
-          title='Leave blank for no expiration'
+          title='Leave blank for no expiration',
+          type_='date'
         ) }}
         {{ form_errors('expires') }}
+        <em class="u-cf">Leave this field blank to create a token that doesn't expire.</em>
       </p>
       <p><input type="submit" value="Create token"></p>
     </form>

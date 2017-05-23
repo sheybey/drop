@@ -286,6 +286,12 @@ def upload():
             return json.dumps({'uploaded': name})
         flash('File `{}\' uploaded.'.format(name), 'success')
         return redirect(url_for('index'))
+    if request.args.get('json', False):
+        errors = []
+        for field in form.errors:
+            for error in form.errors[field]:
+                errors.append(error)
+        return json.dumps({'errors': errors}), 400
     return render_template('upload.html', form=form)
 
 

@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
+    'use strict';
     function dismissButton() {
         var span = document.createElement('span');
         span.appendChild(document.createTextNode('\u00d7'));
