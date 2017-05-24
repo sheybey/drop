@@ -1,5 +1,5 @@
 from flask import Flask, render_template, redirect, flash, abort, url_for, \
-    request, escape, send_from_directory
+    request, escape, send_from_directory, jsonify
 from markupsafe import Markup
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, current_user
@@ -16,7 +16,6 @@ from os import path, mkdir, stat, unlink, urandom
 from datetime import date
 from tokenize import tokenize, untokenize, NAME, OP, EQUAL, STRING, \
     ENCODING, NEWLINE, NL, ENDMARKER, open as token_open
-import json
 
 
 class DefaultConfiguration:
@@ -283,7 +282,7 @@ def upload():
         ))
         db.session.commit()
         if request.args.get('json', False):
-            return json.dumps({'uploaded': name})
+            return jsonify({'uploaded': name})
         flash('File `{}\' uploaded.'.format(name), 'success')
         return redirect(url_for('index'))
     if request.args.get('json', False):
@@ -291,7 +290,7 @@ def upload():
         for field in form.errors:
             for error in form.errors[field]:
                 errors.append(error)
-        return json.dumps({'errors': errors}), 400
+        return jsonify({'errors': errors}), 400
     return render_template('upload.html', form=form)
 
 
@@ -308,7 +307,7 @@ def delete_file():
     db.session.delete(file)
     db.session.commit()
     if request.args.get('json', False):
-        return json.dumps({'deleted': name})
+        return jsonify({'deleted': name})
     flash('File `{}\' deleted.'.format(name), 'success')
     return redirect(url_for('index'))
 
@@ -346,7 +345,7 @@ def delete_token():
     db.session.delete(token)
     db.session.commit()
     if request.args.get('json', False):
-        return json.dumps({'deleted': t})
+        return jsonify({'deleted': t})
     flash('Token `{}\' deleted.'.format(t), 'success')
     return redirect(url_for('tokens'))
 
