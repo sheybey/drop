@@ -28,12 +28,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (in_progress) {
             return;
         }
-        in_progress = true;
 
         if (!file.files[0]) {
             window.message('No file provided.', 'error');
             return;
         }
+
+        in_progress = true;
 
         progress = document.createElement('progress');
         progress.classList.add('u-cf');
