@@ -1,5 +1,5 @@
 from flask import Flask, render_template, redirect, flash, abort, url_for, \
-    request, escape, send_from_directory, jsonify
+    request, escape, send_from_directory, jsonify, session
 from markupsafe import Markup
 from werkzeug.utils import secure_filename
 from flask_login import LoginManager, current_user
@@ -16,6 +16,7 @@ from os import path, mkdir, stat, unlink, urandom
 from datetime import date
 from tokenize import tokenize, untokenize, NAME, OP, EQUAL, STRING, \
     ENCODING, NEWLINE, NL, ENDMARKER, open as token_open
+from functools import wraps
 
 
 class DefaultConfiguration:
@@ -210,6 +211,31 @@ class CreateTokenForm(FlaskForm):
     )
 
 
+def login_required(message, category='error'):
+    def wrap(f):
+        @wraps(f)
+        def check_login(**kwargs):
+            if not current_user.is_authenticated:
+                session['next'] = url_for(f.__name__, **kwargs)
+                flash(message, category)
+                return redirect(url_for('login'))
+            return f(**kwargs)
+        return check_login
+    return wrap
+
+
+def perm_required(permission, message, category='error'):
+    def wrap(f):
+        @wraps(f)
+        def check_perms(**kwargs):
+            if not current_user.permission >= permission:
+                flash(message, category)
+                return redirect(url_for('index'))
+            return f(**kwargs)
+        return check_perms
+    return wrap
+
+
 @app.before_request
 def check_token():
     if current_user.expired:
@@ -234,7 +260,7 @@ def login():
                     return redirect(url_for('index'))
                 login_user(token)
                 flash('Logged in.', 'success')
-                return redirect(url_for('index'))
+                return redirect(session.pop('next', url_for('index')))
         flash('Incorrect token.', 'error')
     return render_template('login.html', form=form)
 
@@ -247,11 +273,12 @@ def logout():
 
 
 @app.route('/upload', methods=['GET', 'POST'])
+@login_required('You must log in to upload files.')
+@perm_required(
+    permission=Token.Permissions.upload,
+    message='You are not allowed to upload files.'
+)
 def upload():
-    if not current_user.upload:
-        flash('You are not allowed to upload files.', 'error')
-        return redirect(url_for('index'))
-
     form = UploadForm()
 
     if current_user.admin:
@@ -313,13 +340,21 @@ def delete_file():
 
 
 @app.route('/tokens')
+@login_required('You must log in to view tokens.')
+@perm_required(
+    permission=Token.Permissions.admin,
+    message='You are not allowed to view tokens.'
+)
 def tokens():
-    if not current_user.admin:
-        return redirect(url_for('login'))
     return render_template('tokens.html', tokens=Token.query.all())
 
 
 @app.route('/tokens/<int:token_id>')
+@login_required('You must log in to view tokens.')
+@perm_required(
+    permission=Token.Permissions.admin,
+    message='You are not allowed to view tokens.'
+)
 def files(token_id):
     if not current_user.admin:
         return redirect(url_for('login'))
@@ -351,6 +386,11 @@ def delete_token():
 
 
 @app.route('/tokens/create', methods=['GET', 'POST'])
+@login_required('You must log in to create a token.')
+@perm_required(
+    permission=Token.Permissions.admin,
+    message='You are not allowed to create a token.'
+)
 def create_token():
     if not current_user.admin:
         return redirect(url_for('login'))
@@ -372,7 +412,13 @@ def create_token():
 def get(name):
     file = File.query.filter_by(name=name).first_or_404()
     if not file.visible_to(current_user):
-        abort(404)
+        if current_user.is_authenticated:
+            flash('You are not allowed to view this file.', 'error')
+            return redirect('index')
+        else:
+            flash('You must log in to view this file.', 'error')
+            session['next'] = url_for('get', name=name)
+            return redirect(url_for('login'))
     return send_from_directory(app.config['UPLOAD_DIR'], file.name)
 
 
