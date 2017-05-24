@@ -16,10 +16,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function reset() {
             form.removeChild(progress);
+
             submit.removeEventListener('click', cancel);
             submit.addEventListener('click', start);
             submit.classList.remove('danger');
             submit.value = 'Start upload';
+
             in_progress = false;
         }
 
@@ -65,6 +67,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.message(error, 'error');
                 });
             }
+
+            file.value = '';
+            
             reset();
         });
         x.addEventListener('error', function () {
