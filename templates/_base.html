@@ -22,7 +22,7 @@
 {% block body %}
   {% include '_navbar.html' %}
   <div class="container">
-    <h1>{{ self.title() }}</h1>
+    {% block h1 %}<h1>{{ self.title() }}</h1>{% endblock %}
     {% include '_messages.html' %}
     {% block content %}{% endblock %}
   </div>
