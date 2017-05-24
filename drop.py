@@ -109,6 +109,7 @@ class File(db.Model):
 
 class AnonymousUser(AnonymousUserMixin):
     token = None
+    id = None
     permission = 0
     expires = None
     expired = False
