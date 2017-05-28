@@ -481,8 +481,6 @@ def secret_key():
                     name = source
                 elif token == OP:
                     assign = op_type == EQUAL
-                elif token == ENCODING:
-                    encoding = source
 
                 if token == STRING and assign and name == 'SECRET_KEY':
                     result.append((STRING, repr(new_key)))
